@@ -274,56 +274,39 @@ function App() {
   if (view === 'thank-you') {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-4">
-        <div className="max-w-2xl w-full">
+        <div className="max-w-lg w-full">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl overflow-hidden border border-primary/10">
-            <div className="bg-primary/10 p-12 flex flex-col items-center justify-center">
+            <div className="bg-primary/10 p-16 flex flex-col items-center justify-center">
               <div className="bg-primary/20 p-6 rounded-full mb-6">
-                <svg className="w-16 h-16 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <h1 className="text-4xl font-bold text-primary text-center mb-4">¡Gracias!</h1>
-              <p className="text-xl text-slate-600 dark:text-slate-400 text-center mb-2">Hemos registrado tu participación</p>
+              <p className="text-lg text-slate-600 dark:text-slate-400 text-center">
+                Su evaluación ha sido registrada exitosamente
+              </p>
             </div>
 
             <div className="p-8 space-y-6">
               <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-6 border border-primary/20">
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-center">
-                  Agradecemos sinceramente tu participación en nuestro cuestionario de evaluación de estilos de pensamiento. 
-                  Tu aporte es fundamental para mejorar continuamente nuestros sistemas de identificación y desarrollo de habilidades cognitivas.
-                </p>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-6 space-y-3">
-                <p className="font-semibold text-slate-900 dark:text-slate-100">Información de tu evaluación:</p>
-                <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-600 dark:text-slate-400">Código:</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{userData.code}</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-slate-600 dark:text-slate-400">Correo:</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{userData.email}</span>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                <p className="text-sm text-blue-800 dark:text-blue-300 text-center">
-                  Los resultados de tu evaluación serán analizados por nuestro equipo especializado en sistemas de pensamiento, 
-                  con el objetivo de proporcionarte retroalimentación personalizada que contribuya a tu desarrollo académico y profesional.
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-center text-base">
+                  Agradecemos su participación en nuestro sistema de evaluación de estilos de pensamiento. 
+                  Sus respuestas han sido almacenadas de manera segura para su posterior análisis.
                 </p>
               </div>
 
               <button 
                 onClick={() => { setView('login'); setAnswers({}); setCurrentQuestionIndex(0); setUserData({ name: '', code: '', email: '' }); }}
-                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 transition-all"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
               >
-                Volver al Inicio
+                Finalizar
               </button>
             </div>
           </div>
 
-          <p className="text-center text-slate-500 dark:text-slate-400 text-sm mt-8">
-            Sistema de Evaluación de Estilos de Pensamiento © 2024 - Universidad Industrial de Santander
+          <p className="text-center text-slate-500 dark:text-slate-400 text-sm mt-6">
+            Universidad Industrial de Santander
           </p>
         </div>
       </div>
