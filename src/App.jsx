@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { questions, categoriesInfo } from './data'
 import { jsPDF } from 'jspdf'
 import emailjs from 'emailjs-com'
+import logoUIS from './assets/Logotipo_UIS.png'
 
 // Inicializar EmailJS con tu Public Key
 emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY)
@@ -76,21 +77,21 @@ function App() {
           <div className="p-4 bg-white dark:bg-slate-900 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight flex-1 text-center">UIS</h2>
           </div>
-          <div className="w-full aspect-video bg-primary/5 flex items-center justify-center p-8">
-            <div className="w-full h-full bg-center bg-no-repeat bg-contain" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBzSw6hnjCouJSaVvHuvXbbAro9CoqdPWHLD_p6CYj8316Qs5EFaJDkLJNhQ2UlI7tLGDufOYK4u_v5gm617dZGKsftmG1Wpxy2Xo687S2ZqD9D07MyWeneHn_-Z-95z8zwV6Y-w1FfUE7ReuIjmS-GKxIk_UxEoojdfq432yF14GUw2w4Lp5WZnC2MTL0lnm692wNJ7E64TwcP4r2crV-YPNTz8R08nyWw82qNhrzpOzTpk5nAnhC4inhUAa8l0BYt6YjxflkmVtA")' }}></div>
+          <div className="w-full aspect-square bg-primary/5 flex items-center justify-center p-8">
+            <img src={logoUIS} alt="Logo UIS" className="max-h-full max-w-full object-contain" />
           </div>
           <div className="px-8 pt-8 pb-4">
             <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold text-center">Inicio de Sesión</h1>
             <p className="text-slate-500 text-sm text-center mt-2">Cuestionario de Estilos de Pensamiento</p>
           </div>
-          <form className="px-8 pb-10 space-y-5" onSubmit={handleLogin}>
-            <div className="flex flex-col gap-2">
+          <form className="px-8 pb-10 space-y-6" onSubmit={handleLogin}>
+            <div className="flex flex-col gap-3">
               <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Código estudiantil</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">person</span>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
                 <input 
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-800 focus:ring-1 focus:ring-primary outline-none transition-all"
-                  placeholder="ej. 2224654"
+                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Codigo: ejemplo 2224654"
                   type="text"
                   required
                   value={userData.code}
@@ -99,13 +100,13 @@ function App() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo institucional</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">mail</span>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
                 <input 
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-800 focus:ring-1 focus:ring-primary outline-none transition-all"
-                  placeholder="ej. nombre@correo.uis.edu.co"
+                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Ejemplo: nombre@correo.uis.edu.co"
                   type="email"
                   required
                   value={userData.email}
@@ -130,8 +131,8 @@ function App() {
       <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 flex flex-col items-center">
         <div className="relative flex min-h-screen w-full flex-col max-w-md bg-white dark:bg-slate-900 shadow-xl overflow-x-hidden">
           <div className="flex items-center p-4 pb-2 justify-between border-b border-primary/10">
-            <button onClick={prevQuestion} className="text-primary flex size-12 items-center justify-center hover:bg-primary/5 rounded-full transition-colors">
-              <span className="material-symbols-outlined">arrow_back</span>
+            <button onClick={prevQuestion} className="text-red-600 flex size-12 items-center justify-center hover:bg-red-50 rounded-full transition-colors font-bold text-sm">
+              Salir
             </button>
             <h2 className="text-lg font-bold flex-1 text-center pr-12">Cuestionario UIS</h2>
           </div>
