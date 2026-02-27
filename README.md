@@ -19,3 +19,4 @@ If you are developing a production application, we recommend using TypeScript wi
 ## Credenciales de administrador  
 Email: admin@uis.edu.co
 Contraseña: admin123
+Cuestionario (estudiantes): uis2026

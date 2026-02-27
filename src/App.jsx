@@ -42,6 +42,9 @@ function App() {
   // Credenciales de administrador
   const ADMIN_EMAIL = 'admin@uis.edu.co'
   const ADMIN_PASSWORD = 'admin123'
+  
+  // Contraseña del cuestionario (para todos los usuarios regulares)
+  const QUESTIONNAIRE_PASSWORD = 'uis2026'
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -49,9 +52,12 @@ function App() {
     // Verificar si son credenciales de administrador
     if (userData.email === ADMIN_EMAIL && userData.password === ADMIN_PASSWORD) {
       setView('admin')
-    } else if (userData.email && userData.password) {
-      // Credenciales de estudiante - continuar al cuestionario
+    } else if (userData.email && userData.password === QUESTIONNAIRE_PASSWORD) {
+      // Credenciales de estudiante - validar contraseña del cuestionario
       setView('quiz')
+    } else if (userData.email && userData.password) {
+      // Contraseña incorrecta
+      alert('Contraseña del cuestionario incorrecta. Por favor intente nuevamente.')
     } else {
       alert('Por favor complete todos los campos')
     }
@@ -165,7 +171,7 @@ function App() {
               <div className="relative">
                 <input 
                   className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                  placeholder="Ingrese su contraseña"
+                  placeholder="Ingrese la contraseña del cuestionario"
                   type="password"
                   required
                   value={userData.password}
