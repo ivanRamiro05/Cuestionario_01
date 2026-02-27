@@ -1,5 +1,4 @@
 export const questions = [
-  { id: 1, text: "Generalmente no me acerco a los problemas de forma creativa.", category: "D" },
   { id: 2, text: "Me gusta probar y luego revisar mis ideas antes de generar la solución o el producto final.", category: "C" },
   { id: 3, text: "Me gusta tomarme el tiempo para clarificar la naturaleza exacta del problema.", category: "A" },
   { id: 4, text: "Disfruto de tomar los pasos necesarios para poner mis ideas en acción.", category: "D" },

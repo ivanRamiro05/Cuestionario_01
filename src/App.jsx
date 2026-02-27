@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { questions, categoriesInfo } from './data'
 import { jsPDF } from 'jspdf'
 import emailjs from 'emailjs-com'
@@ -134,6 +134,32 @@ function App() {
     }
   }
 
+  // Manejar eventos de teclado para el cuestionario
+  useEffect(() => {
+    if (view !== 'quiz') return
+
+    const handleKeyPress = (e) => {
+      const q = questions[currentQuestionIndex]
+      
+      // Números 1-9
+      if (e.key >= '1' && e.key <= '9') {
+        const score = parseInt(e.key)
+        handleScoreChange(score)
+      }
+      // Número 0 representa 10
+      else if (e.key === '0') {
+        handleScoreChange(10)
+      }
+      // Enter para siguiente pregunta
+      else if (e.key === 'Enter' && answers[q.id]) {
+        nextQuestion()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [view, currentQuestionIndex, answers])
+
   // VIEWS
   if (view === 'login') {
     return (
@@ -243,6 +269,8 @@ function App() {
                     </button>
                   ))}
                 </div>
+                
+                
               </div>
             </div>
           </div>
