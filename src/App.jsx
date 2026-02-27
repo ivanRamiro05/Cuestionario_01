@@ -38,6 +38,8 @@ function App() {
   const [numCuestionarios, setNumCuestionarios] = useState('')
   const [refreshData, setRefreshData] = useState(0) // Para forzar actualización de datos
   const [showAllResponses, setShowAllResponses] = useState(false) // Para controlar vista de todas las respuestas
+  const [expandedTeam, setExpandedTeam] = useState(null) // Para controlar qué equipo está expandido
+  const [generatedTeams, setGeneratedTeams] = useState([]) // Para almacenar equipos generados
   
   // Credenciales de administrador
   const ADMIN_EMAIL = 'admin@uis.edu.co'
@@ -459,6 +461,142 @@ function App() {
       }
     }
 
+    const generateTeams = () => {
+      // Agrupar estudiantes por categoría
+      const byCategory = { A: [], B: [], C: [], D: [] }
+      
+      allResponses.forEach(response => {
+        const category = response.topCategory
+        if (category && byCategory[category]) {
+          byCategory[category].push(response)
+        }
+      })
+
+      // Determinar cuántos equipos se pueden formar
+      const minCount = Math.min(
+        byCategory.A.length,
+        byCategory.B.length,
+        byCategory.C.length,
+        byCategory.D.length
+      )
+
+      if (minCount === 0) {
+        alert('No hay suficientes estudiantes en todas las categorías para formar equipos balanceados.\n\nSe necesita al menos un estudiante de cada categoría (Clarificador, Ideador, Desarrollador, Implementador).')
+        return []
+      }
+
+      // Mezclar los arrays para asignación aleatoria
+      const shuffle = (array) => {
+        const shuffled = [...array]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
+        return shuffled
+      }
+
+      const shuffledA = shuffle(byCategory.A)
+      const shuffledB = shuffle(byCategory.B)
+      const shuffledC = shuffle(byCategory.C)
+      const shuffledD = shuffle(byCategory.D)
+
+      // Crear equipos
+      const teams = []
+      for (let i = 0; i < minCount; i++) {
+        teams.push({
+          id: i + 1,
+          name: `Equipo ${String.fromCharCode(65 + i)}`, // A, B, C, ...
+          members: [
+            shuffledA[i],
+            shuffledB[i],
+            shuffledC[i],
+            shuffledD[i]
+          ]
+        })
+      }
+
+      // Informar sobre estudiantes no asignados
+      const unassigned = {
+        A: byCategory.A.length - minCount,
+        B: byCategory.B.length - minCount,
+        C: byCategory.C.length - minCount,
+        D: byCategory.D.length - minCount
+      }
+
+      const totalUnassigned = unassigned.A + unassigned.B + unassigned.C + unassigned.D
+
+      let message = `✅ Se formaron ${teams.length} equipos balanceados (4 integrantes cada uno).`
+      
+      if (totalUnassigned > 0) {
+        message += `\n\n⚠️ ${totalUnassigned} estudiante(s) no se pudieron asignar por falta de balance:`
+        if (unassigned.A > 0) message += `\n- ${unassigned.A} Clarificador(es)`
+        if (unassigned.B > 0) message += `\n- ${unassigned.B} Ideador(es)`
+        if (unassigned.C > 0) message += `\n- ${unassigned.C} Desarrollador(es)`
+        if (unassigned.D > 0) message += `\n- ${unassigned.D} Implementador(es)`
+      }
+
+      alert(message)
+      setGeneratedTeams(teams)
+      setExpandedTeam(null)
+      return teams
+    }
+
+    const deleteTeam = (teamId) => {
+      if (confirm('¿Está seguro de que desea eliminar este equipo?')) {
+        setGeneratedTeams(prev => prev.filter(team => team.id !== teamId))
+        setExpandedTeam(null)
+      }
+    }
+
+    const deleteAllTeams = () => {
+      if (confirm('¿Está seguro de que desea eliminar TODOS los equipos? Esta acción no se puede deshacer.')) {
+        setGeneratedTeams([])
+        setExpandedTeam(null)
+      }
+    }
+
+    const getUnassignedStudents = () => {
+      // Obtener IDs de todos los estudiantes asignados a equipos
+      const assignedIds = new Set()
+      generatedTeams.forEach(team => {
+        team.members.forEach(member => {
+          assignedIds.add(member.id)
+        })
+      })
+
+      // Filtrar estudiantes no asignados
+      return allResponses.filter(response => !assignedIds.has(response.id))
+    }
+
+    const addMemberToTeam = (teamId, responseId) => {
+      const studentToAdd = allResponses.find(r => r.id === responseId)
+      if (!studentToAdd) return
+
+      setGeneratedTeams(prev => prev.map(team => {
+        if (team.id === teamId) {
+          return {
+            ...team,
+            members: [...team.members, studentToAdd]
+          }
+        }
+        return team
+      }))
+    }
+
+    const removeMemberFromTeam = (teamId, memberId) => {
+      if (confirm('¿Está seguro de que desea quitar este participante del equipo?')) {
+        setGeneratedTeams(prev => prev.map(team => {
+          if (team.id === teamId) {
+            return {
+              ...team,
+              members: team.members.filter(member => member.id !== memberId)
+            }
+          }
+          return team
+        }))
+      }
+    }
+
     const importCSV = (event) => {
       const file = event.target.files[0]
       if (!file) return
@@ -610,6 +748,170 @@ function App() {
               </button>
             </div>
             <p className="text-slate-500 text-sm mt-3">Genera cuestionarios con datos aleatorios para análisis y pruebas. Los datos incluyen usuarios, correos y respuestas variadas.</p>
+          </section>
+
+          {/* Sección de Gestión de Equipos */}
+          <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
+            <div className="mb-4">
+              <h3 className="text-2xl font-bold mb-2">Gestionar Equipos de Desarrollo</h3>
+              <p className="text-slate-600 dark:text-slate-400">
+                Forma equipos balanceados de 4 integrantes (uno por cada categoría)
+              </p>
+            </div>
+            
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={generateTeams}
+                disabled={allResponses.length < 4}
+                className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                  allResponses.length < 4 
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
+              >
+                🎯 Generar Equipos
+              </button>
+              
+              {generatedTeams.length > 0 && (
+                <button
+                  onClick={deleteAllTeams}
+                  className="px-6 py-3 rounded-lg font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white"
+                >
+                  🗑️ Eliminar Todos
+                </button>
+              )}
+            </div>
+
+            {generatedTeams.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-lg font-bold mb-4">Equipos Generados ({generatedTeams.length})</h4>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {generatedTeams.map((team) => {
+                    const unassignedStudents = getUnassignedStudents()
+                    
+                    return (
+                    <div 
+                      key={team.id} 
+                      className="border-2 border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+                    >
+                      <div className="bg-primary text-white font-bold py-3 px-4 flex justify-between items-center">
+                        <button
+                          onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                          className="flex-1 text-left flex justify-between items-center hover:opacity-80 transition-opacity"
+                        >
+                          <span>{team.name} ({team.members.length} miembros)</span>
+                          <span className="text-xl">{expandedTeam === team.id ? '▼' : '▶'}</span>
+                        </button>
+                        <button
+                          onClick={() => deleteTeam(team.id)}
+                          className="ml-3 px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-sm transition-colors"
+                          title="Eliminar equipo"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      
+                      {expandedTeam === team.id && (
+                        <div className="p-4 space-y-3">
+                          {team.members.map((member, idx) => (
+                            <div 
+                              key={member.id} 
+                              className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-bold text-sm text-primary">
+                                  {categoriesInfo[member.topCategory]?.name || 'Sin categoría'}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">
+                                    {member.topCategory}
+                                  </span>
+                                  <button
+                                    onClick={() => removeMemberFromTeam(team.id, member.id)}
+                                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+                                    title="Quitar del equipo"
+                                  >
+                                    ✖
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-sm mb-1">
+                                <strong>Código:</strong> {member.code}
+                              </p>
+                              <p className="text-sm mb-1">
+                                <strong>Email:</strong> {member.email}
+                              </p>
+                              <p className="text-sm mb-2">
+                                <strong>Rol:</strong> {member.rolEstudiante}
+                              </p>
+                              <div className="grid grid-cols-4 gap-2 text-xs">
+                                <div className="text-center">
+                                  <div className="font-bold">A</div>
+                                  <div>{member.averages.A}</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">B</div>
+                                  <div>{member.averages.B}</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">C</div>
+                                  <div>{member.averages.C}</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-bold">D</div>
+                                  <div>{member.averages.D}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {/* Sección para añadir participantes */}
+                          {unassignedStudents.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-slate-600">
+                              <label className="block text-sm font-semibold mb-2">
+                                Añadir participante:
+                              </label>
+                              <div className="flex gap-2">
+                                <select
+                                  id={`add-member-${team.id}`}
+                                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:border-primary focus:ring-0 outline-none"
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>Seleccionar estudiante...</option>
+                                  {unassignedStudents.map(student => (
+                                    <option key={student.id} value={student.id}>
+                                      {student.email} - {categoriesInfo[student.topCategory]?.name} ({student.topCategory})
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => {
+                                    const select = document.getElementById(`add-member-${team.id}`)
+                                    const studentId = parseInt(select.value)
+                                    if (studentId) {
+                                      addMemberToTeam(team.id, studentId)
+                                      select.value = ''
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                                >
+                                  ➕ Añadir
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-slate-500 text-sm mt-4">
+              Los equipos se forman con un integrante de cada categoría: Clarificador (A), Ideador (B), Desarrollador (C) e Implementador (D).
+            </p>
           </section>
 
           <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
