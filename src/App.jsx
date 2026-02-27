@@ -436,10 +436,10 @@ function App() {
     }
 
     const downloadCSV = () => {
-      let csv = 'Fecha,Código,Correo,Rol Estudiante,A (Clarificador),B (Ideador),C (Desarrollador),D (Implementador)\\n'
+      let csv = 'Fecha,Código,Correo,Rol Estudiante,A (Clarificador),B (Ideador),C (Desarrollador),D (Implementador)\n'
       allResponses.forEach(response => {
         const { timestamp, code, email, rolEstudiante, averages } = response
-        csv += `"${timestamp}","${code}","${email}","${rolEstudiante}",${averages.A},${averages.B},${averages.C},${averages.D}\\n`
+        csv += `"${timestamp}","${code}","${email}","${rolEstudiante}",${averages.A},${averages.B},${averages.C},${averages.D}\n`
       })
       
       const element = document.createElement('a')
@@ -457,6 +457,119 @@ function App() {
         setRefreshData(prev => prev + 1)
         setShowAllResponses(false)
       }
+    }
+
+    const importCSV = (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result
+          const lines = text.split('\n').filter(line => line.trim() !== '')
+          
+          console.log('Total de líneas:', lines.length)
+          console.log('Primera línea (encabezado):', lines[0])
+          
+          // Saltar la primera línea (encabezados)
+          const dataLines = lines.slice(1)
+          
+          const existingResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
+          let importedCount = 0
+          let skippedCount = 0
+          let errorCount = 0
+          
+          dataLines.forEach((line, index) => {
+            try {
+              // Parsear CSV respetando comillas
+              const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
+              const values = line.split(regex).map(v => v.replace(/^"|"$/g, '').trim())
+              
+              console.log(`Línea ${index + 2}:`, values.length, 'columnas')
+              
+              if (values.length >= 8) {
+                const [timestamp, code, email, rolEstudiante, clarificador, ideador, desarrollador, implementador] = values
+                
+                // Validar que tenga email
+                if (!email || email === '') {
+                  console.log(`Línea ${index + 2}: Email vacío, omitiendo`)
+                  errorCount++
+                  return
+                }
+                
+                // Validar que el email no exista
+                const emailExists = existingResponses.some(r => r.email === email)
+                if (emailExists) {
+                  console.log(`Línea ${index + 2}: Email duplicado (${email}), omitiendo`)
+                  skippedCount++
+                  return
+                }
+                
+                // Determinar topCategory del rolEstudiante
+                let topCategory = 'A'
+                if (rolEstudiante.includes('Clarificador')) topCategory = 'A'
+                else if (rolEstudiante.includes('Ideador')) topCategory = 'B'
+                else if (rolEstudiante.includes('Desarrollador')) topCategory = 'C'
+                else if (rolEstudiante.includes('Implementador')) topCategory = 'D'
+                
+                // Crear objeto de respuesta
+                const newResponse = {
+                  id: Date.now() + importedCount * 10,
+                  timestamp: timestamp || new Date().toLocaleString(),
+                  code: code || '',
+                  email: email || '',
+                  answers: {}, // No tenemos las respuestas detalladas del CSV
+                  averages: {
+                    A: parseFloat(clarificador) || 0,
+                    B: parseFloat(ideador) || 0,
+                    C: parseFloat(desarrollador) || 0,
+                    D: parseFloat(implementador) || 0
+                  },
+                  rolEstudiante: rolEstudiante || '',
+                  topCategory: topCategory
+                }
+                
+                existingResponses.push(newResponse)
+                importedCount++
+              } else {
+                console.log(`Línea ${index + 2}: Formato inválido (${values.length} columnas, se esperan 8)`)
+                errorCount++
+              }
+            } catch (lineError) {
+              console.error(`Error en línea ${index + 2}:`, lineError)
+              errorCount++
+            }
+          })
+          
+          if (importedCount > 0) {
+            localStorage.setItem('questionnaire_responses', JSON.stringify(existingResponses))
+            setRefreshData(prev => prev + 1)
+            setShowAllResponses(false)
+            
+            let message = `✅ Se importaron ${importedCount} registros exitosamente.`
+            if (skippedCount > 0) message += `\n⚠️ Se omitieron ${skippedCount} registros con correos duplicados.`
+            if (errorCount > 0) message += `\n⚠️ ${errorCount} líneas con errores de formato.`
+            
+            alert(message)
+          } else {
+            let errorMsg = '❌ No se importaron registros.'
+            if (errorCount > 0) errorMsg += `\n${errorCount} líneas con errores de formato.`
+            if (skippedCount > 0) errorMsg += `\n${skippedCount} correos duplicados.`
+            errorMsg += '\n\nRevise la consola del navegador para más detalles.'
+            alert(errorMsg)
+          }
+          
+          // Limpiar el input file
+          event.target.value = ''
+          
+        } catch (error) {
+          alert('❌ Error al importar el archivo CSV. Verifique el formato.\n\nRevise la consola del navegador para más detalles.')
+          console.error('Error importando CSV:', error)
+        }
+      }
+      
+      reader.readAsText(file)
     }
 
     return (
@@ -513,6 +626,15 @@ function App() {
                 >
                   📥 Descargar CSV
                 </button>
+                <label className="px-4 py-2 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+                  📤 Importar CSV
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={importCSV}
+                    className="hidden"
+                  />
+                </label>
                 <button
                   onClick={deleteAllResponses}
                   disabled={allResponses.length === 0}
