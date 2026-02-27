@@ -3,6 +3,28 @@ import { questions, categoriesInfo } from './data'
 import { jsPDF } from 'jspdf'
 import emailjs from 'emailjs-com'
 import logoUIS from './assets/Logotipo_UIS.png'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
+import { Bar, Pie, Doughnut } from 'react-chartjs-2'
+
+// Registrar componentes de Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 // Inicializar EmailJS con tu Public Key
 emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY)
@@ -13,6 +35,9 @@ function App() {
   const [answers, setAnswers] = useState({})
   const [userData, setUserData] = useState({ name: '', code: '', email: '', password: '' })
   const [isSending, setIsSending] = useState(false)
+  const [numCuestionarios, setNumCuestionarios] = useState('')
+  const [refreshData, setRefreshData] = useState(0) // Para forzar actualización de datos
+  const [showAllResponses, setShowAllResponses] = useState(false) // Para controlar vista de todas las respuestas
   
   // Credenciales de administrador
   const ADMIN_EMAIL = 'admin@uis.edu.co'
@@ -276,6 +301,66 @@ function App() {
   if (view === 'admin') {
     const allResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
 
+    // Función para generar cuestionarios aleatorios
+    const generateRandomQuestionnaires = (count) => {
+      const nombres = ['Juan', 'María', 'Carlos', 'Ana', 'Luis', 'Sofia', 'Pedro', 'Laura', 'Diego', 'Carolina']
+      const apellidos = ['García', 'Rodríguez', 'Martínez', 'López', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores']
+      const dominios = ['correo.uis.edu.co', 'uis.edu.co', 'outlook.uis.edu.co']
+      
+      const newResponses = []
+      const existingResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
+      
+      for (let i = 0; i < count; i++) {
+        const nombre = nombres[Math.floor(Math.random() * nombres.length)]
+        const apellido = apellidos[Math.floor(Math.random() * apellidos.length)]
+        const codigo = `22${Math.floor(10000 + Math.random() * 90000)}`
+        const email = `${nombre.toLowerCase()}.${apellido.toLowerCase()}${Math.floor(Math.random() * 100)}@${dominios[Math.floor(Math.random() * dominios.length)]}`
+        
+        // Generar respuestas aleatorias para todas las preguntas
+        const randomAnswers = {}
+        questions.forEach(q => {
+          randomAnswers[q.id] = Math.floor(Math.random() * 10) + 1
+        })
+        
+        // Calcular resultados
+        const results = calculateResults(randomAnswers)
+        const topCategory = Object.keys(results.averages).reduce((a, b) => 
+          parseFloat(results.averages[a]) > parseFloat(results.averages[b]) ? a : b, 'A')
+        const topCategoryTitle = categoriesInfo[topCategory].title
+        
+        const newResponse = {
+          id: Date.now() + i,
+          timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleString(),
+          code: codigo,
+          email: email,
+          answers: randomAnswers,
+          averages: results.averages,
+          rolEstudiante: topCategoryTitle,
+          topCategory: topCategory
+        }
+        
+        newResponses.push(newResponse)
+      }
+      
+      const allData = [...existingResponses, ...newResponses]
+      localStorage.setItem('questionnaire_responses', JSON.stringify(allData))
+      setRefreshData(prev => prev + 1) // Forzar actualización en lugar de recargar
+      setNumCuestionarios('') // Limpiar el input
+      setShowAllResponses(false) // Volver a mostrar solo las primeras 10
+      alert(`✅ Se generaron ${count} cuestionarios exitosamente`)
+    }
+
+    const handleGenerateQuestionnaires = () => {
+      const count = parseInt(numCuestionarios)
+      if (isNaN(count) || count <= 0 || count > 1000) {
+        alert('Por favor ingrese un número válido entre 1 y 1000')
+        return
+      }
+      if (confirm(`¿Está seguro de generar ${count} cuestionarios aleatorios?`)) {
+        generateRandomQuestionnaires(count)
+      }
+    }
+
     const downloadCSV = () => {
       let csv = 'Fecha,Código,Correo,Rol Estudiante,A (Clarificador),B (Ideador),C (Desarrollador),D (Implementador)\\n'
       allResponses.forEach(response => {
@@ -295,7 +380,8 @@ function App() {
     const deleteAllResponses = () => {
       if (confirm('¿Está seguro de que desea eliminar TODAS las respuestas? Esta acción no se puede deshacer.')) {
         localStorage.setItem('questionnaire_responses', '[]')
-        window.location.reload()
+        setRefreshData(prev => prev + 1)
+        setShowAllResponses(false)
       }
     }
 
@@ -312,6 +398,33 @@ function App() {
         </header>
 
         <main className="max-w-6xl mx-auto p-6">
+          {/* Sección de generación de cuestionarios */}
+          <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
+            <h3 className="text-xl font-bold mb-4">🔧 Generador de Cuestionarios Aleatorios</h3>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold mb-2 block">Cantidad de cuestionarios a generar</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={numCuestionarios}
+                  onChange={(e) => setNumCuestionarios(e.target.value)}
+                  placeholder="Ejemplo: 500"
+                  className="w-full px-4 py-3 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                />
+              </div>
+              <button
+                onClick={handleGenerateQuestionnaires}
+                disabled={!numCuestionarios}
+                className={`px-6 py-3 rounded-lg font-semibold transition-colors ${!numCuestionarios ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              >
+                ⚡ Generar Datos
+              </button>
+            </div>
+            <p className="text-slate-500 text-sm mt-3">Genera cuestionarios con datos aleatorios para análisis y pruebas. Los datos incluyen usuarios, correos y respuestas variadas.</p>
+          </section>
+
           <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -341,91 +454,303 @@ function App() {
                 <p className="text-slate-500 text-lg">No hay respuestas registradas aún.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b-2 border-primary">
-                      <th className="text-left py-3 px-4 font-bold text-primary">Fecha</th>
-                      <th className="text-left py-3 px-4 font-bold text-primary">Código</th>
-                      <th className="text-left py-3 px-4 font-bold text-primary">Correo</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Rol Estudiante</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Clarificador (A)</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Ideador (B)</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Desarrollador (C)</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Implementador (D)</th>
-                      <th className="text-center py-3 px-4 font-bold text-primary">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allResponses.map((response, index) => (
-                      <tr key={response.id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <td className="py-3 px-4">{response.timestamp}</td>
-                        <td className="py-3 px-4 font-semibold">{response.code}</td>
-                        <td className="py-3 px-4">{response.email}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1 rounded-full font-semibold">
-                            {response.rolEstudiante}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full font-semibold">
-                            {response.averages.A}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full font-semibold">
-                            {response.averages.B}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full font-semibold">
-                            {response.averages.C}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full font-semibold">
-                            {response.averages.D}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() => {
-                              const allResp = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
-                              const filtered = allResp.filter(r => r.id !== response.id)
-                              localStorage.setItem('questionnaire_responses', JSON.stringify(filtered))
-                              window.location.reload()
-                            }}
-                            className="text-red-600 hover:text-red-800 font-semibold transition-colors"
-                          >
-                            Eliminar
-                          </button>
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-primary">
+                        <th className="text-left py-3 px-4 font-bold text-primary">Fecha</th>
+                        <th className="text-left py-3 px-4 font-bold text-primary">Código</th>
+                        <th className="text-left py-3 px-4 font-bold text-primary">Correo</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Rol Estudiante</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Clarificador (A)</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Ideador (B)</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Desarrollador (C)</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Implementador (D)</th>
+                        <th className="text-center py-3 px-4 font-bold text-primary">Acción</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {(showAllResponses ? allResponses : allResponses.slice(0, 10)).map((response, index) => (
+                        <tr key={response.id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                          <td className="py-3 px-4">{response.timestamp}</td>
+                          <td className="py-3 px-4 font-semibold">{response.code}</td>
+                          <td className="py-3 px-4">{response.email}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1 rounded-full font-semibold">
+                              {response.rolEstudiante}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full font-semibold">
+                              {response.averages.A}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-1 rounded-full font-semibold">
+                              {response.averages.B}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full font-semibold">
+                              {response.averages.C}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full font-semibold">
+                              {response.averages.D}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => {
+                                const allResp = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
+                                const filtered = allResp.filter(r => r.id !== response.id)
+                                localStorage.setItem('questionnaire_responses', JSON.stringify(filtered))
+                                setRefreshData(prev => prev + 1)
+                              }}
+                              className="text-red-600 hover:text-red-800 font-semibold transition-colors"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botón para mostrar/ocultar todas las respuestas */}
+                {allResponses.length > 10 && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={() => setShowAllResponses(!showAllResponses)}
+                      className="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                    >
+                      {showAllResponses ? (
+                        <>📌    Reducir    </>
+                      ) : (
+                        <>📋 Mostrar todas las respuestas ({allResponses.length})</>
+                      )}
+                    </button>
+                    <p className="text-slate-500 text-sm mt-2">
+                      {showAllResponses 
+                        ? `Mostrando todas las ${allResponses.length} respuestas`
+                        : `Mostrando 10 de ${allResponses.length} respuestas`
+                      }
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
           {allResponses.length > 0 && (
-            <section className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-100 dark:border-slate-800">
-              <h3 className="text-xl font-bold mb-4">Estadísticas Generales</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {Object.entries(categoriesInfo).map(([key, data]) => {
-                  const avgScore = (
-                    allResponses.reduce((sum, r) => sum + parseFloat(r.averages[key]), 0) / allResponses.length
-                  ).toFixed(2)
-                  return (
-                    <div key={key} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{data.title}</p>
-                      <p className="text-3xl font-bold text-primary">{avgScore}</p>
-                      <p className="text-xs text-slate-500 mt-1">Promedio de {allResponses.length} estudiantes</p>
+            <>
+              <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
+                <h3 className="text-xl font-bold mb-4">📊 Estadísticas Generales</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {Object.entries(categoriesInfo).map(([key, data]) => {
+                    const avgScore = (
+                      allResponses.reduce((sum, r) => sum + parseFloat(r.averages[key]), 0) / allResponses.length
+                    ).toFixed(2)
+                    return (
+                      <div key={key} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{data.title}</p>
+                        <p className="text-3xl font-bold text-primary">{avgScore}</p>
+                        <p className="text-xs text-slate-500 mt-1">Promedio de {allResponses.length} estudiantes</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+
+              {/* Sección de Gráficos Avanzados */}
+              <section className="bg-white dark:bg-slate-900 rounded-xl p-6 mb-6 border border-slate-100 dark:border-slate-800">
+                <h3 className="text-xl font-bold mb-6">📈 Visualizaciones y Análisis</h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Gráfico de Torta - Distribución de Roles */}
+                  <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-lg">
+                    <h4 className="text-lg font-semibold mb-4 text-center">Distribución de Perfiles de Estudiantes</h4>
+                    <div className="h-[300px] flex items-center justify-center">
+                      <Pie
+                        data={{
+                          labels: Object.values(categoriesInfo).map(c => c.title),
+                          datasets: [{
+                            data: Object.keys(categoriesInfo).map(key => 
+                              allResponses.filter(r => r.topCategory === key).length
+                            ),
+                            backgroundColor: [
+                              'rgba(59, 130, 246, 0.8)',
+                              'rgba(168, 85, 247, 0.8)',
+                              'rgba(34, 197, 94, 0.8)',
+                              'rgba(249, 115, 22, 0.8)'
+                            ],
+                            borderColor: [
+                              'rgba(59, 130, 246, 1)',
+                              'rgba(168, 85, 247, 1)',
+                              'rgba(34, 197, 94, 1)',
+                              'rgba(249, 115, 22, 1)'
+                            ],
+                            borderWidth: 2
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                              labels: {
+                                color: '#64748b',
+                                font: { size: 12 }
+                              }
+                            },
+                            tooltip: {
+                              callbacks: {
+                                label: function(context) {
+                                  const label = context.label || '';
+                                  const value = context.parsed || 0;
+                                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                  const percentage = ((value / total) * 100).toFixed(1);
+                                  return `${label}: ${value} (${percentage}%)`;
+                                }
+                              }
+                            }
+                          }
+                        }}
+                      />
                     </div>
-                  )
-                })}
-              </div>
-            </section>
+                  </div>
+
+                  {/* Gráfico de Barras - Promedios por Categoría */}
+                  <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-lg">
+                    <h4 className="text-lg font-semibold mb-4 text-center">Promedio de Puntuaciones por Categoría</h4>
+                    <div className="h-[300px]">
+                      <Bar
+                        data={{
+                          labels: Object.values(categoriesInfo).map(c => c.title),
+                          datasets: [{
+                            label: 'Puntuación Promedio',
+                            data: Object.keys(categoriesInfo).map(key => (
+                              allResponses.reduce((sum, r) => sum + parseFloat(r.averages[key]), 0) / allResponses.length
+                            ).toFixed(2)),
+                            backgroundColor: [
+                              'rgba(59, 130, 246, 0.7)',
+                              'rgba(168, 85, 247, 0.7)',
+                              'rgba(34, 197, 94, 0.7)',
+                              'rgba(249, 115, 22, 0.7)'
+                            ],
+                            borderColor: [
+                              'rgba(59, 130, 246, 1)',
+                              'rgba(168, 85, 247, 1)',
+                              'rgba(34, 197, 94, 1)',
+                              'rgba(249, 115, 22, 1)'
+                            ],
+                            borderWidth: 2
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              max: 5,
+                              ticks: { color: '#64748b' },
+                              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                            },
+                            x: {
+                              ticks: { color: '#64748b' },
+                              grid: { display: false }
+                            }
+                          },
+                          plugins: {
+                            legend: {
+                              display: false
+                            },
+                            tooltip: {
+                              callbacks: {
+                                label: function(context) {
+                                  return `Promedio: ${context.parsed.y}`;
+                                }
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gráfico de Rosquilla - Distribución Detallada */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-lg">
+                  <h4 className="text-lg font-semibold mb-4 text-center">Análisis de Composición de Perfiles</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="h-[300px] flex items-center justify-center">
+                      <Doughnut
+                        data={{
+                          labels: Object.values(categoriesInfo).map(c => c.title),
+                          datasets: [{
+                            data: Object.keys(categoriesInfo).map(key => 
+                              allResponses.filter(r => r.topCategory === key).length
+                            ),
+                            backgroundColor: [
+                              'rgba(59, 130, 246, 0.8)',
+                              'rgba(168, 85, 247, 0.8)',
+                              'rgba(34, 197, 94, 0.8)',
+                              'rgba(249, 115, 22, 0.8)'
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 3
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                              labels: {
+                                color: '#64748b',
+                                font: { size: 12 }
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <h5 className="font-semibold mb-4 text-slate-700 dark:text-slate-300">Recomendaciones para Formación de Grupos:</h5>
+                      <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li className="flex items-start">
+                          <span className="text-blue-500 mr-2">●</span>
+                          <span><strong>Clarificadores:</strong> Ideales para definir objetivos y analizar problemas complejos.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-purple-500 mr-2">●</span>
+                          <span><strong>Ideadores:</strong> Aportan creatividad e ideas innovadoras al equipo.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-green-500 mr-2">●</span>
+                          <span><strong>Desarrolladores:</strong> Refinan y mejoran las soluciones propuestas.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="text-orange-500 mr-2">●</span>
+                          <span><strong>Implementadores:</strong> Ejecutan y concretan las ideas en proyectos reales.</span>
+                        </li>
+                      </ul>
+                      <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                        <p className="text-sm text-indigo-900 dark:text-indigo-200">
+                          <strong>💡 Consejo:</strong> Los equipos más efectivos combinan diferentes perfiles para aprovechar fortalezas complementarias.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </>
           )}
         </main>
       </div>
