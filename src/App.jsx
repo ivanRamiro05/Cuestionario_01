@@ -53,8 +53,32 @@ function App() {
     if (userData.email === ADMIN_EMAIL && userData.password === ADMIN_PASSWORD) {
       setView('admin')
     } else if (userData.email && userData.password === QUESTIONNAIRE_PASSWORD) {
-      // Credenciales de estudiante - validar contraseña del cuestionario
-      setView('quiz')
+      // Credenciales de estudiante - verificar si el email ya existe
+      const allResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
+      const existingResponse = allResponses.find(r => r.email === userData.email)
+      
+      if (existingResponse) {
+        // El usuario ya tiene una encuesta registrada
+        const confirm = window.confirm(
+          `Ya existe una encuesta registrada con el correo ${userData.email} del ${existingResponse.timestamp}.\n\n` +
+          `¿Desea actualizar su encuesta anterior?\n\n` +
+          `Si acepta, se eliminará su encuesta anterior y podrá realizar una nueva.`
+        )
+        
+        if (confirm) {
+          // Eliminar la encuesta anterior
+          const filteredResponses = allResponses.filter(r => r.email !== userData.email)
+          localStorage.setItem('questionnaire_responses', JSON.stringify(filteredResponses))
+          setView('quiz')
+        } else {
+          // No permitir continuar
+          alert('No se puede continuar con el mismo correo. Por favor use otro correo o acepte actualizar su encuesta.')
+          return
+        }
+      } else {
+        // Email nuevo, continuar al cuestionario
+        setView('quiz')
+      }
     } else if (userData.email && userData.password) {
       // Contraseña incorrecta
       alert('Contraseña del cuestionario incorrecta. Por favor intente nuevamente.')
@@ -84,8 +108,12 @@ function App() {
       topCategory: topCategory
     }
     
-    allResponses.push(newResponse)
-    localStorage.setItem('questionnaire_responses', JSON.stringify(allResponses))
+    // Eliminar cualquier respuesta anterior con el mismo email (seguridad adicional)
+    const filteredResponses = allResponses.filter(r => r.email !== userInfo.email)
+    
+    // Agregar la nueva respuesta
+    filteredResponses.push(newResponse)
+    localStorage.setItem('questionnaire_responses', JSON.stringify(filteredResponses))
   }
 
   const calculateResults = (answersObj = answers) => {
@@ -343,12 +371,24 @@ function App() {
       
       const newResponses = []
       const existingResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
+      const existingEmails = new Set(existingResponses.map(r => r.email))
       
       for (let i = 0; i < count; i++) {
         const nombre = nombres[Math.floor(Math.random() * nombres.length)]
         const apellido = apellidos[Math.floor(Math.random() * apellidos.length)]
         const codigo = `22${Math.floor(10000 + Math.random() * 90000)}`
-        const email = `${nombre.toLowerCase()}.${apellido.toLowerCase()}${Math.floor(Math.random() * 100)}@${dominios[Math.floor(Math.random() * dominios.length)]}`
+        
+        // Generar email único usando timestamp para evitar duplicados
+        let email
+        let attempts = 0
+        do {
+          const randomNum = Math.floor(Math.random() * 10000)
+          email = `${nombre.toLowerCase()}.${apellido.toLowerCase()}${randomNum}@${dominios[Math.floor(Math.random() * dominios.length)]}`
+          attempts++
+        } while (existingEmails.has(email) && attempts < 100)
+        
+        // Agregar el email al set para evitar duplicados en el mismo lote
+        existingEmails.add(email)
         
         // Generar respuestas aleatorias para todas las preguntas
         const randomAnswers = {}
