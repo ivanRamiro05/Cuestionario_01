@@ -11,26 +11,24 @@ function App() {
   const [view, setView] = useState('login') // 'login', 'quiz', 'thank-you', 'admin'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState({})
-  const [userData, setUserData] = useState({ name: '', code: '', email: '' })
+  const [userData, setUserData] = useState({ name: '', code: '', email: '', password: '' })
   const [isSending, setIsSending] = useState(false)
-  const [loginMode, setLoginMode] = useState('student') // 'student' o 'admin'
-  const [adminPassword, setAdminPassword] = useState('')
-  const ADMIN_PASSWORD = 'admin123' // Cambia esto por una contraseña más segura
+  
+  // Credenciales de administrador
+  const ADMIN_EMAIL = 'admin@uis.edu.co'
+  const ADMIN_PASSWORD = 'admin123'
 
   const handleLogin = (e) => {
     e.preventDefault()
     
-    if (loginMode === 'student') {
-      if (userData.code && userData.email) {
-        setView('quiz')
-      }
+    // Verificar si son credenciales de administrador
+    if (userData.email === ADMIN_EMAIL && userData.password === ADMIN_PASSWORD) {
+      setView('admin')
+    } else if (userData.email && userData.password) {
+      // Credenciales de estudiante - continuar al cuestionario
+      setView('quiz')
     } else {
-      // Login de admin
-      if (adminPassword === ADMIN_PASSWORD) {
-        setView('admin')
-      } else {
-        alert('Contraseña de administrador incorrecta')
-      }
+      alert('Por favor complete todos los campos')
     }
   }
 
@@ -117,81 +115,42 @@ function App() {
             <img src={logoUIS} alt="Logo UIS" className="max-h-full max-w-full object-contain" />
           </div>
           <div className="px-8 pt-8 pb-4">
-            <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold text-center">Inicio de Sesión</h1>
+            <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold text-center">Registro</h1>
             <p className="text-slate-500 text-sm text-center mt-2">Cuestionario de Estilos de Pensamiento</p>
           </div>
 
-          {/* Selector de tipo de usuario */}
-          <div className="px-8 pt-4">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setLoginMode('student')}
-                className={`flex-1 py-2 rounded-lg font-semibold transition-all ${loginMode === 'student' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-              >
-                Estudiante
-              </button>
-              <button
-                type="button"
-                onClick={() => setLoginMode('admin')}
-                className={`flex-1 py-2 rounded-lg font-semibold transition-all ${loginMode === 'admin' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-              >
-                Administrador
-              </button>
-            </div>
-          </div>
-
           <form className="px-8 pb-10 space-y-6 pt-6" onSubmit={handleLogin}>
-            {loginMode === 'student' ? (
-              <>
-                <div className="flex flex-col gap-3">
-                  <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Código estudiantil</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
-                    <input 
-                      className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                      placeholder="Codigo: ejemplo 2224654"
-                      type="text"
-                      required
-                      value={userData.code}
-                      onChange={(e) => setUserData({ ...userData, code: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo institucional</label>
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
-                    <input 
-                      className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                      placeholder="Ejemplo: nombre@correo.uis.edu.co"
-                      type="email"
-                      required
-                      value={userData.email}
-                      onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Contraseña de Administrador</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl">lock</span>
-                  <input 
-                    className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                    placeholder="Ingrese la contraseña"
-                    type="password"
-                    required
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                  />
-                </div>
+            <div className="flex flex-col gap-3">
+              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo institucional</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
+                <input 
+                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Ejemplo: nombre@correo.uis.edu.co"
+                  type="email"
+                  required
+                  value={userData.email}
+                  onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                />
               </div>
-            )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Contraseña</label>
+              <div className="relative">
+                <input 
+                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Ingrese su contraseña"
+                  type="password"
+                  required
+                  value={userData.password}
+                  onChange={(e) => setUserData({ ...userData, password: e.target.value })}
+                />
+              </div>
+            </div>
+
             <button className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-lg shadow-md transition-all active:scale-[0.98]" type="submit">
-              Ingresar
+              Registrarse
             </button>
           </form>
         </div>
@@ -297,7 +256,7 @@ function App() {
               </div>
 
               <button 
-                onClick={() => { setView('login'); setAnswers({}); setCurrentQuestionIndex(0); setUserData({ name: '', code: '', email: '' }); }}
+                onClick={() => { setView('login'); setAnswers({}); setCurrentQuestionIndex(0); setUserData({ name: '', code: '', email: '', password: '' }); }}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
               >
                 Finalizar
@@ -345,7 +304,7 @@ function App() {
         <header className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 border-b border-primary/10 sticky top-0 z-10">
           <h2 className="text-lg font-bold">Panel de Administrador</h2>
           <button
-            onClick={() => { setView('login'); setAdminPassword(''); }}
+            onClick={() => { setView('login'); setUserData({ name: '', code: '', email: '', password: '' }); }}
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Cerrar Sesión
