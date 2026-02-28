@@ -30,10 +30,11 @@ ChartJS.register(
 emailjs.init(import.meta.env.VITE_EMAILJS_PUBLIC_KEY)
 
 function App() {
-  const [view, setView] = useState('login') // 'login', 'quiz', 'thank-you', 'admin'
+  const [view, setView] = useState('login') // 'login', 'instructions', 'quiz', 'thank-you', 'admin'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState({})
-  const [userData, setUserData] = useState({ name: '', code: '', email: '', password: '' })
+  const [userData, setUserData] = useState({ name: '', code: '' })
+  const [exampleAnswer, setExampleAnswer] = useState(null) // Para la pregunta de ejemplo
   const [isSending, setIsSending] = useState(false)
   const [numCuestionarios, setNumCuestionarios] = useState('')
   const [refreshData, setRefreshData] = useState(0) // Para forzar actualización de datos
@@ -42,48 +43,42 @@ function App() {
   const [generatedTeams, setGeneratedTeams] = useState([]) // Para almacenar equipos generados
   
   // Credenciales de administrador
-  const ADMIN_EMAIL = 'admin@uis.edu.co'
-  const ADMIN_PASSWORD = 'admin123'
-  
-  // Contraseña del cuestionario (para todos los usuarios regulares)
-  const QUESTIONNAIRE_PASSWORD = 'uis2026'
+  const ADMIN_NAME = 'Ivan Suarez'
+  const ADMIN_CODE = '2224654'
 
   const handleLogin = (e) => {
     e.preventDefault()
     
     // Verificar si son credenciales de administrador
-    if (userData.email === ADMIN_EMAIL && userData.password === ADMIN_PASSWORD) {
+    if (userData.name === ADMIN_NAME && userData.code === ADMIN_CODE) {
       setView('admin')
-    } else if (userData.email && userData.password === QUESTIONNAIRE_PASSWORD) {
-      // Credenciales de estudiante - verificar si el email ya existe
+    } else if (userData.name && userData.code) {
+      // Credenciales de estudiante - verificar si el código ya existe
       const allResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
-      const existingResponse = allResponses.find(r => r.email === userData.email)
+      const existingResponse = allResponses.find(r => r.code === userData.code)
       
       if (existingResponse) {
         // El usuario ya tiene una encuesta registrada
         const confirm = window.confirm(
-          `Ya existe una encuesta registrada con el correo ${userData.email} del ${existingResponse.timestamp}.\n\n` +
+          `Ya existe una encuesta registrada con el código ${userData.code} del ${existingResponse.timestamp}.\n\n` +
           `¿Desea actualizar su encuesta anterior?\n\n` +
           `Si acepta, se eliminará su encuesta anterior y podrá realizar una nueva.`
         )
         
         if (confirm) {
           // Eliminar la encuesta anterior
-          const filteredResponses = allResponses.filter(r => r.email !== userData.email)
+          const filteredResponses = allResponses.filter(r => r.code !== userData.code)
           localStorage.setItem('questionnaire_responses', JSON.stringify(filteredResponses))
-          setView('quiz')
+          setView('instructions')
         } else {
           // No permitir continuar
-          alert('No se puede continuar con el mismo correo. Por favor use otro correo o acepte actualizar su encuesta.')
+          alert('No se puede continuar con el mismo código. Por favor use otro código o acepte actualizar su encuesta.')
           return
         }
       } else {
-        // Email nuevo, continuar al cuestionario
-        setView('quiz')
+        // Código nuevo, continuar a las instrucciones
+        setView('instructions')
       }
-    } else if (userData.email && userData.password) {
-      // Contraseña incorrecta
-      alert('Contraseña del cuestionario incorrecta. Por favor intente nuevamente.')
     } else {
       alert('Por favor complete todos los campos')
     }
@@ -99,19 +94,23 @@ function App() {
       parseFloat(results.averages[a]) > parseFloat(results.averages[b]) ? a : b, 'A')
     const topCategoryTitle = categoriesInfo[topCategory].title
     
+    // Generar email basado en el código para compatibilidad con el resto del sistema
+    const generatedEmail = `estudiante${userInfo.code}@uis.edu.co`
+    
     const newResponse = {
       id: Date.now(),
       timestamp,
+      name: userInfo.name,
       code: userInfo.code,
-      email: userInfo.email,
+      email: generatedEmail,
       answers: userAnswers,
       ...results,
       rolEstudiante: topCategoryTitle,
       topCategory: topCategory
     }
     
-    // Eliminar cualquier respuesta anterior con el mismo email (seguridad adicional)
-    const filteredResponses = allResponses.filter(r => r.email !== userInfo.email)
+    // Eliminar cualquier respuesta anterior con el mismo código (seguridad adicional)
+    const filteredResponses = allResponses.filter(r => r.code !== userInfo.code)
     
     // Agregar la nueva respuesta
     filteredResponses.push(newResponse)
@@ -164,6 +163,31 @@ function App() {
     }
   }
 
+  // Manejar eventos de teclado para la vista de instrucciones
+  useEffect(() => {
+    if (view !== 'instructions') return
+
+    const handleKeyPress = (e) => {
+      // Números 1-9
+      if (e.key >= '1' && e.key <= '9') {
+        const score = parseInt(e.key)
+        setExampleAnswer(score)
+      }
+      // Número 0 representa 10
+      else if (e.key === '0') {
+        setExampleAnswer(10)
+      }
+      // Enter para comenzar el cuestionario
+      else if (e.key === 'Enter') {
+        setView('quiz')
+        setExampleAnswer(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [view])
+
   // Manejar eventos de teclado para el cuestionario
   useEffect(() => {
     if (view !== 'quiz') return
@@ -208,38 +232,119 @@ function App() {
 
           <form className="px-8 pb-10 space-y-6 pt-6" onSubmit={handleLogin}>
             <div className="flex flex-col gap-3">
-              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo institucional</label>
+              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Nombre completo</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xl"></span>
                 <input 
-                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                  placeholder="Ejemplo: nombre@correo.uis.edu.co"
-                  type="email"
+                  className="w-full px-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Ejemplo: Juan Pérez"
+                  type="text"
                   required
-                  value={userData.email}
-                  onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                  value={userData.name}
+                  onChange={(e) => setUserData({ ...userData, name: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
-              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Contraseña</label>
+              <label className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Código estudiantil</label>
               <div className="relative">
                 <input 
-                  className="w-full pl-14 pr-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
-                  placeholder="Ingrese la contraseña del cuestionario"
-                  type="password"
+                  className="w-full px-4 py-4 text-base rounded-lg border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:border-primary focus:ring-0 outline-none transition-all"
+                  placeholder="Ejemplo: 2212345"
+                  type="text"
                   required
-                  value={userData.password}
-                  onChange={(e) => setUserData({ ...userData, password: e.target.value })}
+                  value={userData.code}
+                  onChange={(e) => setUserData({ ...userData, code: e.target.value })}
                 />
               </div>
             </div>
 
             <button className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-lg shadow-md transition-all active:scale-[0.98]" type="submit">
-              Registrarse
+              Ingresar
             </button>
           </form>
+        </div>
+      </div>
+    )
+  }
+
+  if (view === 'instructions') {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 flex flex-col items-center">
+        <div className="relative flex min-h-screen w-full flex-col max-w-md bg-white dark:bg-slate-900 shadow-xl overflow-x-hidden">
+          <div className="flex items-center p-4 pb-2 justify-between border-b border-primary/10">
+            <button onClick={() => { setView('login'); setUserData({ name: '', code: '' }); }} className="text-red-600 flex size-12 items-center justify-center hover:bg-red-50 rounded-full transition-colors font-bold text-sm">
+              Atrás
+            </button>
+            <h2 className="text-lg font-bold flex-1 text-center pr-12">Instrucciones</h2>
+          </div>
+
+          <div className="flex-1 px-6 py-8 flex flex-col justify-center">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-6 mb-6">
+              <h3 className="text-xl font-bold text-blue-900 dark:text-blue-100 mb-3">📋 Cómo responder el cuestionario</h3>
+              <p className="text-slate-700 dark:text-slate-300 mb-4 leading-relaxed">
+                A continuación se le presentarán una serie de afirmaciones. Deberá calificar cada una en una escala del <strong>1 al 10</strong>:
+              </p>
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="font-semibold text-slate-600 dark:text-slate-400">1 = No se acerca nada a mí</span>
+                  <span className="font-semibold text-slate-600 dark:text-slate-400">10 = Muy parecido a mí</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-primary/5 border-2 border-primary/20 rounded-xl p-6 mb-6">
+              <h4 className="text-lg font-bold text-primary mb-4">Ejemplo de pregunta:</h4>
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-6 mb-6 shadow-md">
+                <p className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-6 text-center leading-relaxed">
+                  "Generalmente no me acerco a los problemas de forma creativa."
+                </p>
+                
+                <div className="flex w-full items-center justify-between px-2 mb-6">
+                  <span className="text-xs font-semibold text-slate-400">Poco</span>
+                  <div className="text-primary text-4xl font-black bg-primary/5 w-16 h-16 rounded-2xl flex items-center justify-center border-2 border-primary/20">
+                    {exampleAnswer || '-'}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-400">Mucho</span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2 w-full">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                    <button
+                      key={num}
+                      onClick={() => setExampleAnswer(num)}
+                      className={`h-12 rounded-lg font-bold transition-all ${exampleAnswer === num ? 'bg-primary text-white scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <h5 className="font-bold text-green-900 dark:text-green-100 mb-2">💡 Formas de responder:</h5>
+                <ul className="space-y-2 text-sm text-green-800 dark:text-green-200">
+                  <li className="flex items-start">
+                    <span className="mr-2">🖱️</span>
+                    <span><strong>Con el mouse:</strong> Haz clic en el número que mejor represente tu respuesta</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">⌨️</span>
+                    <span><strong>Con el teclado:</strong> Presiona las teclas 1-9 o 0 (para 10), luego presiona <kbd className="bg-white dark:bg-slate-700 px-2 py-1 rounded border">Enter</kbd> para continuar</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-slate-100">
+            <button 
+              onClick={() => { setView('quiz'); setExampleAnswer(null); }}
+              className="w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all bg-primary text-white shadow-primary/20 hover:bg-primary/90"
+            >
+              Comenzar Cuestionario
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -345,7 +450,7 @@ function App() {
               </div>
 
               <button 
-                onClick={() => { setView('login'); setAnswers({}); setCurrentQuestionIndex(0); setUserData({ name: '', code: '', email: '', password: '' }); }}
+                onClick={() => { setView('login'); setAnswers({}); setCurrentQuestionIndex(0); setUserData({ name: '', code: '' }); }}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
               >
                 Finalizar
@@ -369,28 +474,29 @@ function App() {
     const generateRandomQuestionnaires = (count) => {
       const nombres = ['Juan', 'María', 'Carlos', 'Ana', 'Luis', 'Sofia', 'Pedro', 'Laura', 'Diego', 'Carolina']
       const apellidos = ['García', 'Rodríguez', 'Martínez', 'López', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores']
-      const dominios = ['correo.uis.edu.co', 'uis.edu.co', 'outlook.uis.edu.co']
       
       const newResponses = []
       const existingResponses = JSON.parse(localStorage.getItem('questionnaire_responses') || '[]')
-      const existingEmails = new Set(existingResponses.map(r => r.email))
+      const existingCodes = new Set(existingResponses.map(r => r.code))
       
       for (let i = 0; i < count; i++) {
         const nombre = nombres[Math.floor(Math.random() * nombres.length)]
         const apellido = apellidos[Math.floor(Math.random() * apellidos.length)]
-        const codigo = `22${Math.floor(10000 + Math.random() * 90000)}`
+        const nombreCompleto = `${nombre} ${apellido}`
         
-        // Generar email único usando timestamp para evitar duplicados
-        let email
+        // Generar código único
+        let codigo
         let attempts = 0
         do {
-          const randomNum = Math.floor(Math.random() * 10000)
-          email = `${nombre.toLowerCase()}.${apellido.toLowerCase()}${randomNum}@${dominios[Math.floor(Math.random() * dominios.length)]}`
+          codigo = `22${Math.floor(10000 + Math.random() * 90000)}`
           attempts++
-        } while (existingEmails.has(email) && attempts < 100)
+        } while (existingCodes.has(codigo) && attempts < 100)
         
-        // Agregar el email al set para evitar duplicados en el mismo lote
-        existingEmails.add(email)
+        // Agregar el código al set para evitar duplicados en el mismo lote
+        existingCodes.add(codigo)
+        
+        // Generar email para compatibilidad con el resto del sistema
+        const generatedEmail = `estudiante${codigo}@uis.edu.co`
         
         // Generar respuestas aleatorias para todas las preguntas
         const randomAnswers = {}
@@ -407,8 +513,9 @@ function App() {
         const newResponse = {
           id: Date.now() + i,
           timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleString(),
+          name: nombreCompleto,
           code: codigo,
-          email: email,
+          email: generatedEmail,
           answers: randomAnswers,
           averages: results.averages,
           rolEstudiante: topCategoryTitle,
@@ -438,10 +545,10 @@ function App() {
     }
 
     const downloadCSV = () => {
-      let csv = 'Fecha,Código,Correo,Rol Estudiante,A (Clarificador),B (Ideador),C (Desarrollador),D (Implementador)\n'
+      let csv = 'Fecha,Código,Nombre,Rol Estudiante,A (Clarificador),B (Ideador),C (Desarrollador),D (Implementador)\n'
       allResponses.forEach(response => {
-        const { timestamp, code, email, rolEstudiante, averages } = response
-        csv += `"${timestamp}","${code}","${email}","${rolEstudiante}",${averages.A},${averages.B},${averages.C},${averages.D}\n`
+        const { timestamp, code, name, rolEstudiante, averages } = response
+        csv += `"${timestamp}","${code}","${name || ''}","${rolEstudiante}",${averages.A},${averages.B},${averages.C},${averages.D}\n`
       })
       
       const element = document.createElement('a')
@@ -627,19 +734,19 @@ function App() {
               console.log(`Línea ${index + 2}:`, values.length, 'columnas')
               
               if (values.length >= 8) {
-                const [timestamp, code, email, rolEstudiante, clarificador, ideador, desarrollador, implementador] = values
+                const [timestamp, code, name, rolEstudiante, clarificador, ideador, desarrollador, implementador] = values
                 
-                // Validar que tenga email
-                if (!email || email === '') {
-                  console.log(`Línea ${index + 2}: Email vacío, omitiendo`)
+                // Validar que tenga código
+                if (!code || code === '') {
+                  console.log(`Línea ${index + 2}: Código vacío, omitiendo`)
                   errorCount++
                   return
                 }
                 
-                // Validar que el email no exista
-                const emailExists = existingResponses.some(r => r.email === email)
-                if (emailExists) {
-                  console.log(`Línea ${index + 2}: Email duplicado (${email}), omitiendo`)
+                // Validar que el código no exista
+                const codeExists = existingResponses.some(r => r.code === code)
+                if (codeExists) {
+                  console.log(`Línea ${index + 2}: Código duplicado (${code}), omitiendo`)
                   skippedCount++
                   return
                 }
@@ -651,12 +758,16 @@ function App() {
                 else if (rolEstudiante.includes('Desarrollador')) topCategory = 'C'
                 else if (rolEstudiante.includes('Implementador')) topCategory = 'D'
                 
+                // Generar email para compatibilidad con el resto del sistema
+                const generatedEmail = `estudiante${code}@uis.edu.co`
+                
                 // Crear objeto de respuesta
                 const newResponse = {
                   id: Date.now() + importedCount * 10,
                   timestamp: timestamp || new Date().toLocaleString(),
                   code: code || '',
-                  email: email || '',
+                  name: name || '',
+                  email: generatedEmail,
                   answers: {}, // No tenemos las respuestas detalladas del CSV
                   averages: {
                     A: parseFloat(clarificador) || 0,
@@ -686,14 +797,14 @@ function App() {
             setShowAllResponses(false)
             
             let message = `✅ Se importaron ${importedCount} registros exitosamente.`
-            if (skippedCount > 0) message += `\n⚠️ Se omitieron ${skippedCount} registros con correos duplicados.`
+            if (skippedCount > 0) message += `\n⚠️ Se omitieron ${skippedCount} registros con códigos duplicados.`
             if (errorCount > 0) message += `\n⚠️ ${errorCount} líneas con errores de formato.`
             
             alert(message)
           } else {
             let errorMsg = '❌ No se importaron registros.'
             if (errorCount > 0) errorMsg += `\n${errorCount} líneas con errores de formato.`
-            if (skippedCount > 0) errorMsg += `\n${skippedCount} correos duplicados.`
+            if (skippedCount > 0) errorMsg += `\n${skippedCount} códigos duplicados.`
             errorMsg += '\n\nRevise la consola del navegador para más detalles.'
             alert(errorMsg)
           }
@@ -715,7 +826,7 @@ function App() {
         <header className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 border-b border-primary/10 sticky top-0 z-10">
           <h2 className="text-lg font-bold">Panel de Administrador</h2>
           <button
-            onClick={() => { setView('login'); setUserData({ name: '', code: '', email: '', password: '' }); }}
+            onClick={() => { setView('login'); setUserData({ name: '', code: '' }); }}
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Cerrar Sesión
@@ -820,7 +931,7 @@ function App() {
                             >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-bold text-sm text-primary">
-                                  {categoriesInfo[member.topCategory]?.name || 'Sin categoría'}
+                                  {categoriesInfo[member.topCategory]?.title || 'Sin categoría'}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">
@@ -836,10 +947,10 @@ function App() {
                                 </div>
                               </div>
                               <p className="text-sm mb-1">
-                                <strong>Código:</strong> {member.code}
+                                <strong>Nombre:</strong> {member.name || 'N/A'}
                               </p>
                               <p className="text-sm mb-1">
-                                <strong>Email:</strong> {member.email}
+                                <strong>Código:</strong> {member.code}
                               </p>
                               <p className="text-sm mb-2">
                                 <strong>Rol:</strong> {member.rolEstudiante}
@@ -880,7 +991,7 @@ function App() {
                                   <option value="" disabled>Seleccionar estudiante...</option>
                                   {unassignedStudents.map(student => (
                                     <option key={student.id} value={student.id}>
-                                      {student.email} - {categoriesInfo[student.topCategory]?.name} ({student.topCategory})
+                                      {student.name || student.code} - {categoriesInfo[student.topCategory]?.title} ({student.topCategory})
                                     </option>
                                   ))}
                                 </select>
@@ -959,7 +1070,7 @@ function App() {
                       <tr className="border-b-2 border-primary">
                         <th className="text-left py-3 px-4 font-bold text-primary">Fecha</th>
                         <th className="text-left py-3 px-4 font-bold text-primary">Código</th>
-                        <th className="text-left py-3 px-4 font-bold text-primary">Correo</th>
+                        <th className="text-left py-3 px-4 font-bold text-primary">Nombre</th>
                         <th className="text-center py-3 px-4 font-bold text-primary">Rol Estudiante</th>
                         <th className="text-center py-3 px-4 font-bold text-primary">Clarificador (A)</th>
                         <th className="text-center py-3 px-4 font-bold text-primary">Ideador (B)</th>
@@ -973,7 +1084,7 @@ function App() {
                         <tr key={response.id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                           <td className="py-3 px-4">{response.timestamp}</td>
                           <td className="py-3 px-4 font-semibold">{response.code}</td>
-                          <td className="py-3 px-4">{response.email}</td>
+                          <td className="py-3 px-4">{response.name || 'N/A'}</td>
                           <td className="py-3 px-4 text-center">
                             <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-1 rounded-full font-semibold">
                               {response.rolEstudiante}
